@@ -17,6 +17,11 @@ public class Person : MonoBehaviour
     private AudioSource audioSource;
     private int gemsCollected = 0;
     private bool gameEnded = false;
+
+    /// <summary>Gems collected so far (for external display, e.g. ESP32 LCD).</summary>
+    public int GemsCollected { get { return gemsCollected; } }
+    /// <summary>True if player is still alive, false if game over.</summary>
+    public bool IsAlive { get { return !gameEnded; } }
     private bool hasPlayedWinSound = false;
 
     void Start()
@@ -36,11 +41,38 @@ public class Person : MonoBehaviour
     {
         if (gameEnded) return;
 
-        // Chicken detection
+        // Chicken detection — only end game if hit from the front (within camera view)
         if (collision.gameObject.CompareTag("Chicken"))
         {
-            EndGameLoss();
+            if (IsChickenInFrontOfPlayer(collision.gameObject))
+            {
+                EndGameLoss();
+            }
+            // Hit from behind (outside camera view): do nothing, game continues
         }
+    }
+
+    /// <summary>
+    /// Returns true if the chicken is in front of the player (within the first-person camera view).
+    /// Hits from behind do not count as game over.
+    /// </summary>
+    private bool IsChickenInFrontOfPlayer(GameObject chicken)
+    {
+        Vector3 toChicken = (chicken.transform.position - transform.position).normalized;
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            cam = GetComponentInChildren<Camera>();
+        }
+        if (cam == null)
+        {
+            // No camera found, use player forward as fallback
+            return Vector3.Dot(transform.forward, toChicken) > 0f;
+        }
+
+        Vector3 playerForward = cam.transform.forward;
+        // Dot > 0 means chicken is in front of the player (in camera view)
+        return Vector3.Dot(playerForward, toChicken) > 0f;
     }
 
     // ===============================
